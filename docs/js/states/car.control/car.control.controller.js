@@ -9,7 +9,6 @@
         '$scope',
         '$state',
         '$stateParams',
-        'mqttService',
         'brokerDetails',
         'messageService'
         ];
@@ -18,13 +17,13 @@
         $scope,
         $state,
         $stateParams, 
-        mqttService, 
         brokerDetails,
         messageService
     ) {
         
         var vm = this;
-
+        var stateName = "car_control";
+        
         var changed = false;
 
         var channel = $stateParams.channel;
@@ -41,6 +40,8 @@
         vm.sensorValue = DEFAULT_SENSOR;
         vm.actualThrottle = DEFAULT_THROTTLE;
         vm.resources = [];
+        vm.stateName = stateName;
+
 
         vm.targetChannels = Array.apply(null, {
             length: 3
@@ -58,20 +59,18 @@
         vm.fireSpecialWeapon = fireSpecialWeapon;
         
 
-
-
         var throttleTopic = `${brokerDetails.UUID}/control/${channel}/throttle`;
         var getResourcesTopic = `${brokerDetails.UUID}/resources`;
         var resourceStateTopic = `${brokerDetails.UUID}/control/{channel}/{resourceId}/state`;
         var sensorTopic = `${brokerDetails.UUID}/sensors/3`;
 
-        mqttService.subscribe(sensorTopic);
+        messageService.subscribe(sensorTopic);
 
         //subscribe to channel throttle
-        mqttService.subscribe(throttleTopic);
+        messageService.subscribe(throttleTopic);
 
         // subscribe to channel resources
-        mqttService.subscribe(getResourcesTopic);
+        messageService.subscribe(getResourcesTopic);
 
         /*
         Stops the car and returns user back to the index page,
@@ -81,9 +80,9 @@
             var payload = {
                 set : 0
             }
-            mqttService.publish(throttleTopic, JSON.stringify(payload));
+            messageService.publish(throttleTopic, JSON.stringify(payload));
             
-            mqttService.disconnect();
+            messageService.disconnect();
             $state.transitionTo('index', {});
         }
 
@@ -101,7 +100,7 @@
                 state: "requested",
                 target: vm.targetChannel
             };
-            mqttService.publish(resourceStateTopic.replace(/\{resourceId\}/, resourceId).replace(/\{channel\}/, channel), JSON.stringify(payload));
+            messageService.publish(resourceStateTopic.replace(/\{resourceId\}/, resourceId).replace(/\{channel\}/, channel), JSON.stringify(payload));
         }
 
         /*
@@ -118,31 +117,30 @@
             }
         }
 
-        mqttService.onMessageArrived(function (message) {
-
-            console.log(message);
-
-            //check the correct topic
-            if (message.topic === throttleTopic) {
+      
+        messageService.subscribe(throttleTopic,stateName, function(message){
+            if(message.topic == throttleTopic){
+                console.log(JSON.stringify(message,null,2));
                 var throttle  = JSON.parse(message.payloadString);
-            // $scope.sensorValue = throttle;
                 //filter out any set throttle messages
                 if(throttle.hasOwnProperty("throttle")){
                     vm.actualThrottle = throttle.throttle;
                 }
-            } else if (message.topic === getResourcesTopic) {
-                vm.resources = JSON.parse(message.payloadString);
-                vm.resources.forEach(resource => {
-                    // subscribe to resource state for this channel
-                    mqttService.subscribe(resourceStateTopic.replace(/\{resourceId\}/, resource.id));
-                });
-                $scope.$apply();
-            } else if (message.topic == sensorTopic) {
-                //var sensor = JSON.parse(message.payloadString);
-                vm.sensorValue = "Sensor is Activated";
-                
             }
+        });
 
+        messageService.subscribe(getResourcesTopic,stateName, function(message){
+            if(message.topic == getResourcesTopic){
+                vm.resources = JSON.parse(message.payloadString);
+                    vm.resources.forEach(resource => {
+                        // subscribe to resource state for this channel
+                        messageService.subscribe(resourceStateTopic.replace(/\{resourceId\}/, resource.id));
+                    });
+                    $scope.$apply();
+            }
+        });
+
+        messageService.subscribe(resourceStateTopic,stateName, function(message){
             if (vm.resources !== undefined) {
                 vm.resources.forEach(resource => {
                     if (message.topic === resourceStateTopic.replace(/\{resourceId\}/, resource.id)) {
@@ -150,8 +148,9 @@
                     }
                 })
             }
-
         });
+
+        
 
         /*
         When users changes car throttle a change request is sent to server. 
@@ -161,15 +160,9 @@
                 var payload = {
                     set : newThrottle
                 }
-                mqttService.publish(throttleTopic, JSON.stringify(payload));
+                messageService.publish(throttleTopic, JSON.stringify(payload));
             }
         })
-        
-
-        messageService.subscribe("testUUID/channel/0","car_control", function(message){
-            //console.log("message in");
-            console.log(JSON.stringify(message,null,2));
-        });
               
     }
 })();

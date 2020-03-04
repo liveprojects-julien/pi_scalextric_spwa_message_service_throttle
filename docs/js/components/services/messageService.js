@@ -17,6 +17,7 @@ function messageService(mqttService, brokerDetails, $timeout) {
     vm.unsubscribe = unsubscribe;
     vm.registry = registry;
     vm.publish = publish;
+    vm.disconnect = disconnect;
     
     
 
@@ -69,6 +70,10 @@ function messageService(mqttService, brokerDetails, $timeout) {
 
     function publish(topicPath, arg){
         mqttService.publish(topicPath, arg);
+    }
+
+    function disconnect(){
+        mqttService.disconnect();
     }
 
 

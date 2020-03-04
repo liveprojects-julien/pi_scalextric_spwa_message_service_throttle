@@ -24,53 +24,41 @@
 
         vm.update = function(){
             
-            $state.go('homepage');
-        }
-
-       
+            console.log(brokerDetails);
 
 
-        console.log(brokerDetails);
+            mqttService.initialize(brokerDetails.HOST, brokerDetails.PORT);
+            mqttService.onConnectionLost(function () {
+                console.error("connection lost");
+            });
 
-
-
-       
-        mqttService.initialize(brokerDetails.HOST, brokerDetails.PORT);
-        mqttService.onConnectionLost(function () {
-            console.error("connection lost");
-        });
-
-        messageService.initialize();
-        //mqttService.onMessageArrived(messageService.onMessageArrived);
+            messageService.initialize();
+            
     
 
-        var mqttOptions = {};
+            var mqttOptions = {};
 
-        if (brokerDetails.SSL) { mqttOptions.useSSL = brokerDetails.SSL; }
-        if (brokerDetails.USERNAME) {
-            mqttOptions.userName = brokerDetails.USERNAME;
-            if(brokerDetails.PASSWORD){
-                mqttOptions.password = brokerDetails.PASSWORD;
+            if (brokerDetails.SSL) { mqttOptions.useSSL = brokerDetails.SSL; }
+            if (brokerDetails.USERNAME) {
+                mqttOptions.userName = brokerDetails.USERNAME;
+                if(brokerDetails.PASSWORD){
+                    mqttOptions.password = brokerDetails.PASSWORD;
+                }
             }
-        }
 
                 
 
-        mqttService.connect(function (success, error) {
-            if (success) {
-                console.log("mqtt connect success");
-                $state.transitionTo('car_control',
-                    {
-                        //channel: vm.channel,
-                    });
-            } else if (error) {
-                console.log(error)
-                alert(`Could Not Connect to ${brokerDetails.HOST}:${brokerDetails.PORT}`)
-            }
+            mqttService.connect(function (success, error) {
+                if (success) {
+                    console.log("mqtt connect success");
+                    $state.go('homepage');
+                } else if (error) {
+                    console.log(error)
+                    alert(`Could Not Connect to ${brokerDetails.HOST}:${brokerDetails.PORT}`)
+                }
 
-        },mqttOptions)
-            
+            },mqttOptions)
+        }
 
-        
     }
 })();
